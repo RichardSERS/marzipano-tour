@@ -1,71 +1,97 @@
 async function startTour() {
-  const viewer = new Marzipano.Viewer(document.getElementById('pano'));
+  const response = await fetch("tour.json");
+  const tourData = await response.json();
 
-  const response = await fetch('tour.json');
-  const data = await response.json();
+  const viewer = new Marzipano.Viewer(document.getElementById("pano"));
+
+  const limiter = Marzipano.RectilinearView.limit.traditional(
+    1024, (100 * Math.PI) / 180
+  );
 
   const scenes = {};
-  data.scenes.forEach(sceneData => {
+  const map = document.getElementById("map");
+
+  // find bounds for minimap scaling
+  const xs = tourData.scenes.map(s => s.map_x);
+  const ys = tourData.scenes.map(s => s.map_y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+
+  const scaleX = 200 / (maxX - minX);
+  const scaleY = 200 / (maxY - minY);
+
+  function toMapCoords(x, y) {
+    return {
+      x: (x - minX) * scaleX,
+      y: 200 - (y - minY) * scaleY
+    };
+  }
+
+  // Build scenes
+  tourData.scenes.forEach(sceneData => {
     const source = Marzipano.ImageUrlSource.fromString(sceneData.pano);
-    const geometry = new Marzipano.EquirectGeometry([{ width: 4000 }]);
-    const limiter = Marzipano.RectilinearView.limit.traditional(1024, 100*Math.PI/180);
-    const view = new Marzipano.RectilinearView(sceneData.initialViewParameters, limiter);
+    const view = new Marzipano.RectilinearView(
+      {
+        yaw: sceneData.initialViewParameters.yaw || 0,
+        pitch: sceneData.initialViewParameters.pitch || 0,
+        fov: sceneData.initialViewParameters.fov || Math.PI/2
+      },
+      limiter
+    );
 
-    const scene = viewer.createScene({ source, geometry, view, pinFirstLevel: true });
-
-    // Add auto-links as arrows
-    sceneData.linkHotspots.forEach(hotspot => {
-      const element = document.createElement('div');
-      element.classList.add('hotspot');
-      element.innerHTML = '➤'; // arrow
-      element.style.fontSize = '24px';
-      element.style.color = 'white';
-      element.style.textShadow = '0 0 5px black';
-      element.style.cursor = 'pointer';
-      element.addEventListener('click', () => switchScene(hotspot.target));
-      scene.hotspotContainer().createHotspot(element, { yaw: hotspot.yaw, pitch: hotspot.pitch });
+    const scene = viewer.createScene({
+      source: source,
+      view: view,
+      geometry: new Marzipano.EquirectGeometry([{ width: 4000 }])
     });
 
-    scenes[sceneData.id] = { data: sceneData, scene, view };
+    // Add hotspots (arrows)
+    sceneData.linkHotspots.forEach(hs => {
+      const dom = document.createElement("div");
+      dom.className = "hotspot";
+      dom.style.width = "32px";
+      dom.style.height = "32px";
+      dom.style.background = "rgba(0,0,0,0.5)";
+      dom.style.borderRadius = "50%";
+      scene.hotspotContainer().createHotspot(dom, { yaw: hs.yaw, pitch: hs.pitch });
+      dom.addEventListener("click", () => {
+        scenes[hs.target].switchTo();
+      });
+    });
+
+    scenes[sceneData.id] = scene;
+
+    // Draw dot on minimap
+    const coords = toMapCoords(sceneData.map_x, sceneData.map_y);
+    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    dot.setAttribute("class", "dot");
+    dot.setAttribute("cx", coords.x);
+    dot.setAttribute("cy", coords.y);
+    dot.setAttribute("r", 4);
+    dot.addEventListener("click", () => {
+      scenes[sceneData.id].switchTo();
+    });
+    map.appendChild(dot);
+
+    // Optionally connect with lines
+    sceneData.linkHotspots.forEach(hs => {
+      const target = tourData.scenes.find(s => s.id === hs.target);
+      if (target) {
+        const coords2 = toMapCoords(target.map_x, target.map_y);
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("class", "line");
+        line.setAttribute("x1", coords.x);
+        line.setAttribute("y1", coords.y);
+        line.setAttribute("x2", coords2.x);
+        line.setAttribute("y2", coords2.y);
+        map.appendChild(line);
+      }
+    });
   });
 
-  // Switch to a given scene
-  function switchScene(id) {
-    const s = scenes[id];
-    if (s) { s.scene.switchTo(); currentScene = s; drawMinimap(); }
-  }
-
-  // === Minimap ===
-  const minimap = document.getElementById('minimap');
-  const overlay = document.getElementById('minimap-overlay');
-  const ctx = overlay.getContext('2d');
-  let currentScene = null;
-
-  function drawMinimap() {
-    ctx.clearRect(0, 0, overlay.width, overlay.height);
-    data.scenes.forEach(s => {
-      ctx.beginPath();
-      ctx.arc(s.map_x*10+100, s.map_y*10+100, 4, 0, 2*Math.PI); // scaled coords
-      ctx.fillStyle = (currentScene && currentScene.data.id === s.id) ? 'red' : 'blue';
-      ctx.fill();
-    });
-  }
-
-  overlay.addEventListener('click', e => {
-    const rect = overlay.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    let nearest = null, bestDist = 1e9;
-    data.scenes.forEach(s => {
-      const sx = s.map_x*10+100, sy = s.map_y*10+100;
-      const d = Math.hypot(sx-x, sy-y);
-      if (d < bestDist) { bestDist = d; nearest = s; }
-    });
-    if (nearest) switchScene(nearest.id);
-  });
-
-  // Start at first scene
-  switchScene(data.scenes[0].id);
+  // Start at first pano
+  const first = tourData.scenes[0];
+  scenes[first.id].switchTo();
 }
 
 startTour();

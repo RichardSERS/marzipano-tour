@@ -4,61 +4,30 @@
   <meta charset="UTF-8">
   <title>Marzipano Tour</title>
   <style>
-    html, body {
-      margin: 0;
-      height: 100%;
-      overflow: hidden;
-    }
-    #pano {
-      width: 100%;
-      height: 100%;
-    }
-    /* Minimap container */
-    #minimap-container {
+    html, body { margin: 0; height: 100%; overflow: hidden; }
+    #pano { width: 100%; height: 100%; }
+    #map {
       position: absolute;
-      bottom: 10px;
-      right: 10px;
-      width: 200px;
-      height: 200px;
-      background: rgba(255, 255, 255, 0.7);
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      overflow: hidden;
-      transition: transform 0.2s ease-in-out;
+      bottom: 10px; right: 10px;
+      width: 200px; height: 200px;
+      background: rgba(255,255,255,0.7);
+      transition: transform 0.2s;
+    }
+    #map:hover { transform: scale(1.5); }
+    .dot {
+      fill: red;
       cursor: pointer;
     }
-    #minimap-container:hover {
-      transform: scale(1.5);
-      z-index: 1000;
-    }
-    /* Minimap image */
-    #minimap {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
-    /* Canvas overlay for dots/lines */
-    #minimap-overlay {
-      position: absolute;
-      bottom: 10px;
-      right: 10px;
-      width: 200px;
-      height: 200px;
-      pointer-events: none; /* so clicks pass through */
+    .line {
+      stroke: blue;
+      stroke-width: 1;
     }
   </style>
 </head>
 <body>
-  <!-- Panorama container -->
   <div id="pano"></div>
+  <svg id="map"></svg>
 
-  <!-- Minimap with overlay -->
-  <div id="minimap-container">
-    <img id="minimap" src="qualitymap.png" alt="Minimap">
-    <canvas id="minimap-overlay" width="200" height="200"></canvas>
-  </div>
-
-  <!-- Marzipano + tour -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marzipano/0.10.2/marzipano.min.js"></script>
   <script src="tour.js"></script>
 </body>
