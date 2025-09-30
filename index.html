@@ -6,58 +6,38 @@
   <style>
     body { margin:0; overflow:hidden; }
     #pano { width:100vw; height:100vh; }
+
     #minimap {
       position:absolute; bottom:10px; right:10px;
       width:300px; height:300px;
       border:2px solid #fff; background:#000;
+      z-index:9999;
     }
     #minimap img { width:100%; height:100%; object-fit:contain; }
+
     .dot {
-      position:absolute; width:10px; height:10px;
-      border-radius:50%; background:red;
+      position:absolute;
+      width:10px; height:10px;
+      border-radius:50%;
+      background:red;
       transform:translate(-50%,-50%);
       cursor:pointer;
     }
     .dot.active { background:blue; }
   </style>
-  <script src="https://www.marzipano.net/demos/app-files/marzipano.js"></script>
-  <script src="tour.json"></script>
 </head>
 <body>
+  <!-- Viewer container -->
   <div id="pano"></div>
 
+  <!-- Mini-map overlay -->
   <div id="minimap">
     <img src="qualitymap.png" alt="map">
   </div>
-  <script>
-    let activeDot = null;
-    function highlightDot(dot){
-      if(activeDot){ activeDot.classList.remove("active"); }
-      dot.classList.add("active");
-      activeDot = dot;
-    }
-    function switchScene(id){
-      window.switchScene(id);
-      document.querySelectorAll(".dot").forEach(d=>{
-        if(d.dataset.id===id) highlightDot(d);
-      });
-    }
-    fetch("tour.json").then(r=>r.json()).then(data=>{
-      let map = document.getElementById("minimap");
-      data.scenes.forEach(scene=>{
-        if(scene.map_x && scene.map_y){
-          let dot=document.createElement("div");
-          dot.className="dot";
-          dot.style.left=scene.map_x/5+"px";
-          dot.style.top=scene.map_y/5+"px";
-          dot.dataset.id=scene.id;
-          dot.onclick=()=>switchScene(scene.id);
-          map.appendChild(dot);
-        }
-      });
-    });
-  </script>
 
-  <script src="https://www.marzipano.net/demos/app-files/tour.js"></script>
+  <!-- Load Marzipano library (local copy in dist/) -->
+  <script src="marzipano.js"></script>
+  <!-- Load our tour logic -->
+  <script src="tour.js"></script>
 </body>
 </html>
